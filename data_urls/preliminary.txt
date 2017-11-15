@@ -1,0 +1,10 @@
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRlowerThan9/pima.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRlowerThan9/haberman.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRlowerThan9/yeast1.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRlowerThan9/vehicle2.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p1/yeast-1_vs_7.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p2/led7digit-0-2-4-5-6-7-8-9_vs_1.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p3/winequality-red-4.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p3/poker-9_vs_7.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p3/abalone-3_vs_11.zip
+http://sci2s.ugr.es/keel/keel-dataset/datasets/imbalanced/imb_IRhigherThan9p3/winequality-white-9_vs_4.zip
