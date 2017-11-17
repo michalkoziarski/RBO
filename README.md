@@ -18,7 +18,7 @@ To initialize the databases:
 
 To schedule the experiments associated with the [preliminary|final] analysis:
 
-```python experiments/schedule[preliminary|final].py```
+```python experiments/schedule_[preliminary|final].py```
 
 To start a runner, pulling unfinished trials until there are none left (note that several runners can operate simultaneously):
 
