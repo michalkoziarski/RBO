@@ -99,7 +99,6 @@ class RBO:
             minority_scores.append(_score(minority_point, X, y, minority_class, epsilon, cost))
 
         appended = []
-        distances_traveled = []
 
         while len(appended) < n:
             idx = np.random.choice(range(len(minority_points)))
@@ -122,10 +121,7 @@ class RBO:
                     point = translated_point
                     score = translated_score
 
-            distances_traveled.append(_distance(minority_points[idx], point))
             appended.append(point)
-
-        print(np.mean(distances_traveled))
 
         return np.concatenate([X, appended]), np.concatenate([y, minority_class * np.ones(len(appended))])
 
