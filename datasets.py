@@ -7,6 +7,8 @@ import pickle
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.datasets import make_classification
+from imblearn.datasets import make_imbalance
 
 try:
     from urllib.request import urlretrieve
@@ -69,44 +71,7 @@ def partition(X, y):
     return partitions
 
 
-def load(name, url=None, encode_features=True, remove_metadata=True, scale=True, noise_type=None, noise_level=0.0):
-    assert noise_type in [None, 'class', 'attribute']
-    assert 0.0 <= noise_level <= 1.0
-
-    file_name = '%s.dat' % name
-
-    if url is not None:
-        download(url)
-
-    skiprows = 0
-
-    if remove_metadata:
-        with open(os.path.join(DATA_PATH, file_name)) as f:
-            for line in f:
-                if line.startswith('@'):
-                    skiprows += 1
-                else:
-                    break
-
-    df = pd.read_csv(os.path.join(DATA_PATH, file_name), header=None, skiprows=skiprows, skipinitialspace=True,
-                     sep=' *, *', na_values='?', engine='python')
-
-    matrix = df.dropna().as_matrix()
-
-    X, y = matrix[:, :-1], matrix[:, -1]
-    X, y = encode(X, y, encode_features)
-
-    partitions_path = os.path.join(FOLDS_PATH, file_name.replace('.dat', '.folds.pickle'))
-
-    if not os.path.exists(FOLDS_PATH):
-        os.mkdir(FOLDS_PATH)
-
-    if os.path.exists(partitions_path):
-        partitions = pickle.load(open(partitions_path, 'rb'))
-    else:
-        partitions = partition(X, y)
-        pickle.dump(partitions, open(partitions_path, 'wb'))
-
+def make_folds(X, y, partitions, scale=True, noise_type=None, noise_level=0.0):
     folds = []
 
     for i in range(5):
@@ -145,6 +110,47 @@ def load(name, url=None, encode_features=True, remove_metadata=True, scale=True,
     return folds
 
 
+def load(name, url=None, encode_features=True, remove_metadata=True, scale=True, noise_type=None, noise_level=0.0):
+    assert noise_type in [None, 'class', 'attribute']
+    assert 0.0 <= noise_level <= 1.0
+
+    file_name = '%s.dat' % name
+
+    if url is not None:
+        download(url)
+
+    skiprows = 0
+
+    if remove_metadata:
+        with open(os.path.join(DATA_PATH, file_name)) as f:
+            for line in f:
+                if line.startswith('@'):
+                    skiprows += 1
+                else:
+                    break
+
+    df = pd.read_csv(os.path.join(DATA_PATH, file_name), header=None, skiprows=skiprows, skipinitialspace=True,
+                     sep=' *, *', na_values='?', engine='python')
+
+    matrix = df.dropna().as_matrix()
+
+    X, y = matrix[:, :-1], matrix[:, -1]
+    X, y = encode(X, y, encode_features)
+
+    partitions_path = os.path.join(FOLDS_PATH, file_name.replace('.dat', '.folds.pickle'))
+
+    if not os.path.exists(FOLDS_PATH):
+        os.mkdir(FOLDS_PATH)
+
+    if os.path.exists(partitions_path):
+        partitions = pickle.load(open(partitions_path, 'rb'))
+    else:
+        partitions = partition(X, y)
+        pickle.dump(partitions, open(partitions_path, 'wb'))
+
+    return make_folds(X, y, partitions, scale, noise_type, noise_level)
+
+
 def load_all(type=None):
     assert type in [None, 'preliminary', 'final']
 
@@ -177,6 +183,21 @@ def names(type=None):
                     urls.append(line.rstrip())
 
     return [url.split('/')[-1].replace('.zip', '') for url in urls]
+
+
+def make_synthetic(n_majority_samples, n_features, imbalance_ratio, scale=True, noise_type=None, noise_level=0.0):
+    assert imbalance_ratio >= 1.0
+
+    n_informative_redundant = np.min((2, int(0.1 * n_features)))
+
+    X, y = make_classification(int(2 * n_majority_samples * 1.05), n_features,
+                               n_informative=n_informative_redundant,
+                               n_redundant=n_informative_redundant)
+    X, y = make_imbalance(X, y, {0: n_majority_samples, 1: int(n_majority_samples / imbalance_ratio)})
+
+    partitions = partition(X, y)
+
+    return make_folds(X, y, partitions, scale, noise_type, noise_level)
 
 
 if __name__ == '__main__':
