@@ -27,16 +27,11 @@ def _pairwise_distances(X):
     return D
 
 
-def _score(point, X, y, minority_class, epsilon, cost):
+def _score(point, X, y, minority_class, epsilon):
     mutual_density_score = 0.0
 
     for i in range(len(X)):
-        if type(cost[cost.keys()[0]]) is dict:
-            current_cost = cost[y[i]][minority_class]
-        else:
-            current_cost = cost[y[i]]
-
-        rbf = _rbf(_distance(point, X[i]), epsilon / current_cost)
+        rbf = _rbf(_distance(point, X[i]), epsilon)
 
         if y[i] == minority_class:
             mutual_density_score -= rbf
@@ -48,7 +43,7 @@ def _score(point, X, y, minority_class, epsilon, cost):
 
 class RBO:
     def __init__(self, gamma=0.05, n_steps=500, step_size=0.001, stop_probability=0.02, criterion='balance',
-                 cost=None, minority_class=None, n=None):
+                 minority_class=None, n=None):
         assert criterion in ['balance', 'minimize', 'maximize']
         assert 0.0 <= stop_probability <= 1.0
 
@@ -57,24 +52,12 @@ class RBO:
         self.step_size = step_size
         self.stop_probability = stop_probability
         self.criterion = criterion
-        self.cost = cost
         self.minority_class = minority_class
         self.n = n
 
     def fit_sample(self, X, y):
         epsilon = 1.0 / self.gamma
         classes = np.unique(y)
-
-        if self.cost is None:
-            cost = {}
-
-            for current_class in classes:
-                cost[current_class] = {}
-
-                for opposing_class in classes:
-                    cost[current_class][opposing_class] = 1.0
-        else:
-            cost = self.cost
 
         if self.minority_class is None:
             sizes = [sum(y == c) for c in classes]
@@ -96,7 +79,7 @@ class RBO:
 
         for i in range(len(minority_points)):
             minority_point = minority_points[i]
-            minority_scores.append(_score(minority_point, X, y, minority_class, epsilon, cost))
+            minority_scores.append(_score(minority_point, X, y, minority_class, epsilon))
 
         appended = []
 
@@ -113,7 +96,7 @@ class RBO:
                 sign = np.random.choice([-1, 1])
                 translation[np.random.choice(range(len(point)))] = sign * self.step_size
                 translated_point = point + translation
-                translated_score = _score(translated_point, X, y, minority_class, epsilon, cost)
+                translated_score = _score(translated_point, X, y, minority_class, epsilon)
 
                 if (self.criterion == 'balance' and np.abs(translated_score) < np.abs(score)) or \
                         (self.criterion == 'minimize' and translated_score < score) or \
@@ -128,7 +111,7 @@ class RBO:
 
 class RBOSelection:
     def __init__(self, classifier, measure, n_splits=5, gammas=(0.05,), n_steps=500, step_size=0.001,
-                 stop_probability=0.02, criterion='balance', cost=None, minority_class=None, n=None):
+                 stop_probability=0.02, criterion='balance', minority_class=None, n=None):
         self.classifier = classifier
         self.measure = measure
         self.n_splits = n_splits
@@ -137,7 +120,6 @@ class RBOSelection:
         self.step_size = step_size
         self.stop_probability = stop_probability
         self.criterion = criterion
-        self.cost = cost
         self.minority_class = minority_class
         self.n = n
         self.selected_gamma = None
@@ -153,7 +135,7 @@ class RBOSelection:
 
             for train_idx, test_idx in self.skf.split(X, y):
                 X_train, y_train = RBO(gamma=gamma, n_steps=self.n_steps, step_size=self.step_size,
-                                       stop_probability=self.stop_probability, criterion=self.criterion, cost=self.cost,
+                                       stop_probability=self.stop_probability, criterion=self.criterion,
                                        minority_class=self.minority_class, n=self.n).\
                     fit_sample(X[train_idx], y[train_idx])
 
@@ -169,5 +151,5 @@ class RBOSelection:
                 best_score = score
 
         return RBO(gamma=self.selected_gamma, n_steps=self.n_steps, step_size=self.step_size,
-                   stop_probability=self.stop_probability, criterion=self.criterion, cost=self.cost,
+                   stop_probability=self.stop_probability, criterion=self.criterion,
                    minority_class=self.minority_class, n=self.n).fit_sample(X, y)
