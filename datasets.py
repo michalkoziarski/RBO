@@ -18,6 +18,7 @@ except ImportError:
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data')
 FOLDS_PATH = os.path.join(os.path.dirname(__file__), 'folds')
+SYNTHETIC_DATA_PATH = os.path.join(os.path.dirname(__file__), 'synthetic_data')
 
 
 def download(url):
@@ -188,16 +189,56 @@ def names(type=None):
 def make_synthetic(n_majority_samples, n_features, imbalance_ratio, scale=True, noise_type=None, noise_level=0.0):
     assert imbalance_ratio >= 1.0
 
-    n_informative_redundant = np.min((2, int(0.1 * n_features)))
-
-    X, y = make_classification(int(2 * n_majority_samples * 1.05), n_features,
-                               n_informative=n_informative_redundant,
-                               n_redundant=n_informative_redundant)
+    X, y = make_classification(int(2 * n_majority_samples * 1.05), n_features)
     X, y = make_imbalance(X, y, {0: n_majority_samples, 1: int(n_majority_samples / imbalance_ratio)})
 
     partitions = partition(X, y)
 
     return make_folds(X, y, partitions, scale, noise_type, noise_level)
+
+
+def save_all_synthetic():
+    if not os.path.exists(SYNTHETIC_DATA_PATH):
+        os.mkdir(SYNTHETIC_DATA_PATH)
+
+    for n_features in [5, 10, 25, 50, 100, 250]:
+        folds = make_synthetic(1000, n_features, 10.0)
+
+        for i in range(10):
+            (X_train, y_train), (X_test, y_test) = folds[i]
+            y_train, y_test = np.reshape(y_train, (-1, 1)), np.reshape(y_test, (-1, 1))
+            train_set, test_set = np.concatenate((X_train, y_train), axis=1), np.concatenate((X_test, y_test), axis=1)
+            pd.DataFrame(train_set).to_csv(
+                os.path.join(SYNTHETIC_DATA_PATH, 'n_features_%d.%d.train.csv' % (n_features, i + 1)), index=False)
+            pd.DataFrame(test_set).to_csv(
+                os.path.join(SYNTHETIC_DATA_PATH, 'n_features_%d.%d.test.csv' % (n_features, i + 1)), index=False)
+
+    for imbalance_ratio in [5.0, 10.0, 25.0, 50.0, 100.0, 250.0]:
+        folds = make_synthetic(1000, 10, imbalance_ratio)
+
+        for i in range(10):
+            (X_train, y_train), (X_test, y_test) = folds[i]
+            y_train, y_test = np.reshape(y_train, (-1, 1)), np.reshape(y_test, (-1, 1))
+            train_set, test_set = np.concatenate((X_train, y_train), axis=1), np.concatenate((X_test, y_test), axis=1)
+            pd.DataFrame(train_set).to_csv(
+                os.path.join(SYNTHETIC_DATA_PATH, 'imbalance_ratio_%d.%d.train.csv' % (imbalance_ratio, i + 1)),
+                index=False)
+            pd.DataFrame(test_set).to_csv(
+                os.path.join(SYNTHETIC_DATA_PATH, 'imbalance_ratio_%d.%d.test.csv' % (imbalance_ratio, i + 1)),
+                index=False)
+
+
+def load_synthetic(type, parameter, fold):
+    assert type in ['n_features', 'imbalance_ratio']
+    assert 1 <= fold <= 10
+
+    matrix = pd.read_csv(os.path.join(SYNTHETIC_DATA_PATH, '%s_%d.%d.train.csv' % (type, parameter, fold))).as_matrix()
+    X_train, y_train = matrix[:, :-1], matrix[:, -1]
+
+    matrix = pd.read_csv(os.path.join(SYNTHETIC_DATA_PATH, '%s_%d.%d.test.csv' % (type, parameter, fold))).as_matrix()
+    X_test, y_test = matrix[:, :-1], matrix[:, -1]
+
+    return X_train, y_train, X_test, y_test
 
 
 if __name__ == '__main__':
