@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
+from collections import Counter
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import MinMaxScaler
@@ -186,38 +187,54 @@ def names(type=None):
     return [url.split('/')[-1].replace('.zip', '') for url in urls]
 
 
-def make_synthetic(n_majority_samples, n_features, imbalance_ratio, scale=True, noise_type=None, noise_level=0.0):
-    assert imbalance_ratio >= 1.0
-
-    X, y = make_classification(int(2 * n_majority_samples * 1.05), n_features)
-    X, y = make_imbalance(X, y, {0: n_majority_samples, 1: int(n_majority_samples / imbalance_ratio)})
-
-    partitions = partition(X, y)
-
-    return make_folds(X, y, partitions, scale, noise_type, noise_level)
-
-
-def save_all_synthetic():
+def save_all_synthetic(n_majority_samples=1000):
     if not os.path.exists(SYNTHETIC_DATA_PATH):
         os.mkdir(SYNTHETIC_DATA_PATH)
 
-    for n_features in [5, 10, 25, 50, 100, 250]:
-        folds = make_synthetic(1000, n_features, 10.0)
+    X, y = make_classification(int(2 * n_majority_samples * 1.05), 150)
+    X, y = make_imbalance(X, y, {0: n_majority_samples, 1: int(n_majority_samples / 10.0)})
+    partitions = partition(X, y)
+    features = np.arange(150)
+
+    for n_features in [150, 125, 100, 75, 50, 25, 10, 5]:
+        features = sorted(np.random.choice(features, n_features, replace=False))
+        folds = make_folds(X[:, features], y, partitions)
+
+        print('Preparing "n features = %d"...' % n_features)
 
         for i in range(10):
             (X_train, y_train), (X_test, y_test) = folds[i]
+
+            print('Shapes: train %s, test %s.' % (X_train.shape, X_test.shape))
+            print('Class distributions: train %s, test %s.' % (Counter(y_train), Counter(y_test)))
+
             y_train, y_test = np.reshape(y_train, (-1, 1)), np.reshape(y_test, (-1, 1))
             train_set, test_set = np.concatenate((X_train, y_train), axis=1), np.concatenate((X_test, y_test), axis=1)
+
             pd.DataFrame(train_set).to_csv(
                 os.path.join(SYNTHETIC_DATA_PATH, 'n_features_%d.%d.train.csv' % (n_features, i + 1)), index=False)
             pd.DataFrame(test_set).to_csv(
                 os.path.join(SYNTHETIC_DATA_PATH, 'n_features_%d.%d.test.csv' % (n_features, i + 1)), index=False)
 
-    for imbalance_ratio in [5.0, 10.0, 25.0, 50.0, 100.0, 250.0]:
-        folds = make_synthetic(1000, 10, imbalance_ratio)
+    X, y = make_classification(int(2 * n_majority_samples * 1.05), 10)
+    X, y = make_imbalance(X, y, {0: n_majority_samples, 1: int(n_majority_samples)})
+    partitions = partition(X, y)
+    folds = make_folds(X, y, partitions)
+
+    for imbalance_ratio in [5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 125.0, 150.0]:
+        print('Preparing "imbalance ratio = %s"...' % imbalance_ratio)
 
         for i in range(10):
             (X_train, y_train), (X_test, y_test) = folds[i]
+            X_train, y_train = make_imbalance(X_train, y_train, {
+                0: int(n_majority_samples / 2), 1: int(n_majority_samples / (2 * imbalance_ratio))})
+            X_test, y_test = make_imbalance(X_test, y_test, {
+                0: int(n_majority_samples / 2), 1: int(n_majority_samples / (2 * imbalance_ratio))})
+            folds[i] = (X_train, y_train), (X_test, y_test)
+
+            print('Shapes: train %s, test %s.' % (X_train.shape, X_test.shape))
+            print('Class distributions: train %s, test %s.' % (Counter(y_train), Counter(y_test)))
+
             y_train, y_test = np.reshape(y_train, (-1, 1)), np.reshape(y_test, (-1, 1))
             train_set, test_set = np.concatenate((X_train, y_train), axis=1), np.concatenate((X_test, y_test), axis=1)
             pd.DataFrame(train_set).to_csv(
